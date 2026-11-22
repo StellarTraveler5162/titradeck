@@ -1,0 +1,16 @@
+<resources>
+    <style name="Theme.TitraDeck.Common" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">@bool/launch_light_system_bars</item>
+        <item name="android:statusBarColor">@color/launch_surface</item>
+        <item name="android:colorAccent">#166B58</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+    <style name="Theme.TitraDeck.Base" parent="Theme.TitraDeck.Common">
+        <!-- API 26 has no windowLightNavigationBar theme attribute. -->
+        <item name="android:navigationBarColor">#101A1C</item>
+    </style>
+    <style name="Theme.TitraDeck" parent="Theme.TitraDeck.Base">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+</resources>

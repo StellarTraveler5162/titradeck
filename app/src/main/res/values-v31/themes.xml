@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.TitraDeck" parent="Theme.TitraDeck.Base">
+        <item name="android:windowBackground">@color/launch_surface</item>
+        <item name="android:windowSplashScreenBackground">@color/launch_surface</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+    </style>
+</resources>

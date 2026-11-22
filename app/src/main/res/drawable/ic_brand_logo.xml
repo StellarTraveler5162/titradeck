@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- In-app artwork uses a tighter optical inset than the launcher's overscan canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M26,0 H82 Q108,0 108,26 V82 Q108,108 82,108 H26 Q0,108 0,82 V26 Q0,0 26,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0"
+                android:endX="108" android:endY="108"
+                android:startColor="#183F39" android:endColor="#091F25" />
+        </aapt:attr>
+    </path>
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="1.18" android:scaleY="1.18">
+        <path android:fillColor="#FFC76D"
+            android:pathData="M54,22 C52.6,25.6 48,28.9 48,32 C48,35.3 50.7,38 54,38 C57.3,38 60,35.3 60,32 C60,28.9 55.4,25.6 54,22 Z" />
+        <path android:fillColor="#E5FFF6" android:fillType="evenOdd"
+            android:pathData="M43,41 H65 C66.1,41 67,41.9 67,43 C67,44.1 66.1,45 65,45 H62 V52 L76,74 C78.6,78.1 75.7,83 71,83 H37 C32.3,83 29.4,78.1 32,74 L46,52 V45 H43 C41.9,45 41,44.1 41,43 C41,41.9 41.9,41 43,41 Z M50,45 V53.2 L35.4,76.2 C34.6,77.5 35.5,79 37,79 H71 C72.5,79 73.4,77.5 72.6,76.2 L58,53.2 V45 Z" />
+        <path android:fillColor="#5EE5B4" android:fillType="evenOdd"
+            android:pathData="M43.8,63 C49,60.8 57.8,66.4 64.2,63 L72.6,76.2 C73.4,77.5 72.5,79 71,79 H37 C35.5,79 34.6,77.5 35.4,76.2 Z M50,68 H58 A1,1 0,0 1,58,70 H50 A1,1 0,0 1,50,68 Z M50,73 H58 A1,1 0,0 1,58,75 H50 A1,1 0,0 1,50,73 Z" />
+    </group>
+</vector>

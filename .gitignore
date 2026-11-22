@@ -1,0 +1,15 @@
+.tools/
+.cache/
+.gradle/
+.kotlin/
+local.properties
+**/build/
+.idea/
+*.iml
+.DS_Store
+*.jks
+*.keystore
+*.p12
+.signing/
+/releases/
+!gradle/wrapper/gradle-wrapper.jar
