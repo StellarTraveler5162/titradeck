@@ -1,8 +1,10 @@
 ![TITRADECK](docs/promo/titradeck-banner.webp)
 
-[![Release](https://img.shields.io/github/v/release/dongzhan4137/titradeck?label=release)](https://github.com/dongzhan4137/titradeck/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/dongzhan4137/titradeck/total?label=downloads)](https://github.com/dongzhan4137/titradeck/releases)
-[![GitHub Stars](https://img.shields.io/github/stars/dongzhan4137/titradeck?style=flat&label=stars)](https://github.com/dongzhan4137/titradeck/stargazers)
+<p align="center">
+  <a href="https://github.com/dongzhan4137/titradeck/releases/latest"><img src="https://img.shields.io/github/v/release/dongzhan4137/titradeck?style=flat-square&amp;label=release" alt="Release"></a>
+  <a href="https://github.com/dongzhan4137/titradeck/releases"><img src="https://img.shields.io/github/downloads/dongzhan4137/titradeck/total?style=flat-square&amp;label=downloads" alt="Downloads"></a>
+  <a href="https://github.com/dongzhan4137/titradeck/stargazers"><img src="https://img.shields.io/github/stars/dongzhan4137/titradeck?style=flat-square&amp;label=stars" alt="GitHub Stars"></a>
+</p>
 
 TitraDeck 是一款面向化学学习和日常计算的 Android 工作台。计算结果附带公式、单位和推导步骤，便于核对。
 
