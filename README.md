@@ -1,9 +1,9 @@
 ![TITRADECK](docs/promo/titradeck-banner.webp)
 
 <p align="center">
-  <a href="https://github.com/dongzhan4137/titradeck/releases/latest"><img src="https://img.shields.io/github/v/release/dongzhan4137/titradeck?style=flat-square&amp;label=release" alt="Release"></a>
-  <a href="https://github.com/dongzhan4137/titradeck/releases"><img src="https://img.shields.io/github/downloads/dongzhan4137/titradeck/total?style=flat-square&amp;label=downloads" alt="Downloads"></a>
-  <a href="https://github.com/dongzhan4137/titradeck/stargazers"><img src="https://img.shields.io/github/stars/dongzhan4137/titradeck?style=flat-square&amp;label=stars" alt="GitHub Stars"></a>
+  <a href="https://github.com/dongzhan4137/titradeck/releases/latest"><img src="https://img.shields.io/github/v/release/dongzhan4137/titradeck?style=flat-square&amp;label=release&amp;labelColor=700f63&amp;color=a1168e" alt="Release"></a>
+  <a href="https://github.com/dongzhan4137/titradeck/releases"><img src="https://img.shields.io/github/downloads/dongzhan4137/titradeck/total?style=flat-square&amp;label=downloads&amp;labelColor=a6660d&amp;color=ff9500" alt="Downloads"></a>
+  <a href="https://github.com/dongzhan4137/titradeck/stargazers"><img src="https://img.shields.io/github/stars/dongzhan4137/titradeck?style=flat-square&amp;label=stars&amp;labelColor=a1a116&amp;color=ffff00" alt="GitHub Stars"></a>
 </p>
 
 TitraDeck 是一款面向化学学习和日常计算的 Android 工作台。计算结果附带公式、单位和推导步骤，便于核对。
