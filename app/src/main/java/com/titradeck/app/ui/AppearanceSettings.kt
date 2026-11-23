@@ -47,7 +47,7 @@ internal fun SettingsScreen(backgroundHex: String?, appearance: String, themeHex
 
     LazyColumn(modifier = Modifier.testTag("settings_list"), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Text("外观设置", style = MaterialTheme.typography.headlineLarge) }
+        item { Text("设置", style = MaterialTheme.typography.headlineLarge) }
         item { Text("主题色", style = MaterialTheme.typography.titleMedium) }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
             FilterChip(selected = !customTheme, onClick = {
@@ -109,10 +109,19 @@ internal fun SettingsScreen(backgroundHex: String?, appearance: String, themeHex
             }
         } }
         item { Text("背景颜色", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
-        item { BackgroundChoice("跟随系统背景", "随系统配色及明暗模式变化", !customMode) {
-            customMode = false; invalid = false; onBackground(null)
-        } }
-        item { BackgroundChoice("自定义背景", "选择预设，或输入自己的颜色", customMode) { customMode = true; invalid = false } }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                FilterChip(selected = !customMode, onClick = {
+                    customMode = false
+                    invalid = false
+                    onBackground(null)
+                }, label = { Text("跟随系统背景") })
+                FilterChip(selected = customMode, onClick = {
+                    customMode = true
+                    invalid = false
+                }, label = { Text("自定义背景") })
+            }
+        }
         if (customMode) {
             item { Text("选择预设颜色可直接应用", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             items(presets.chunked(3).size) { row ->
@@ -182,19 +191,5 @@ private fun SocialButton(name: String, icon: Int, url: String) {
         }
     }) {
         Icon(painterResource(icon), contentDescription = name, modifier = Modifier.size(22.dp))
-    }
-}
-
-@Composable
-private fun BackgroundChoice(title: String, description: String, selected: Boolean, onSelect: () -> Unit) {
-    Card(onClick = onSelect, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = selected, onClick = null)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
     }
 }

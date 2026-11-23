@@ -1,8 +1,12 @@
 package com.titradeck.app.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,9 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -24,6 +28,7 @@ import com.titradeck.app.chemistry.displayChemicalFormula
 import com.titradeck.app.data.PubChem
 import com.titradeck.app.data.PubChemCompound
 import com.titradeck.app.data.PubChemSearchResult
+import com.titradeck.app.data.saveCompoundImageToGallery
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -31,7 +36,7 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 
 private sealed interface CompoundGraphic {
-    data class Depiction(val image: ImageBitmap) : CompoundGraphic
+    data class Depiction(val image: ImageBitmap, val png: ByteArray) : CompoundGraphic
     data class Model(val molecule: MoleculeModel) : CompoundGraphic
 }
 
@@ -39,6 +44,7 @@ private sealed interface CompoundGraphic {
 fun CompoundLookupScreen(onBack: () -> Unit) {
     val repository = remember { PubChem() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current.applicationContext
     val listState = rememberLazyListState()
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -48,6 +54,43 @@ fun CompoundLookupScreen(onBack: () -> Unit) {
     var selected by remember { mutableStateOf<PubChemCompound?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var pendingExportCid by rememberSaveable { mutableStateOf<Int?>(null) }
+    var pendingExportHeavyAtoms by rememberSaveable { mutableIntStateOf(0) }
+    var pendingPng by remember { mutableStateOf<ByteArray?>(null) }
+    var exporting by remember { mutableStateOf(false) }
+    fun saveToGallery(cid: Int, heavyAtomCount: Int, png: ByteArray?) {
+        exporting = true
+        scope.launch {
+            val message = try {
+                withContext(Dispatchers.IO) {
+                    saveCompoundImageToGallery(context, cid, png ?: repository.depiction(cid, heavyAtomCount))
+                }
+                "图片已保存到 TitraDeck 相册"
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                "无法保存到相册，请重试"
+            } finally {
+                exporting = false
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val storagePermission = Manifest.permission.WRITE_EXTERNAL_STORAGE
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val cid = pendingExportCid
+        val heavyAtomCount = pendingExportHeavyAtoms
+        val png = pendingPng
+        pendingExportCid = null
+        pendingExportHeavyAtoms = 0
+        pendingPng = null
+        if (cid != null && granted) {
+            saveToGallery(cid, heavyAtomCount, png)
+        } else if (cid != null) {
+            Toast.makeText(context, "保存到相册需要存储权限", Toast.LENGTH_SHORT).show()
+        }
+    }
     val currentPage = page
     val results = currentPage?.compounds.orEmpty()
     val showCandidates = currentPage != null &&
@@ -140,7 +183,18 @@ fun CompoundLookupScreen(onBack: () -> Unit) {
                     }
                 }
                 item(key = "structure-${compound.cid}") {
-                    CompoundStructure(compound, repository)
+                    CompoundStructure(compound, repository, canSave = !exporting && pendingExportCid == null) { png ->
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                            context.checkSelfPermission(storagePermission) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            pendingExportCid = compound.cid
+                            pendingExportHeavyAtoms = compound.heavyAtomCount
+                            pendingPng = png
+                            permissionLauncher.launch(storagePermission)
+                        } else {
+                            saveToGallery(compound.cid, compound.heavyAtomCount, png)
+                        }
+                    }
                 }
             }
             if (showCandidates) {
@@ -165,7 +219,12 @@ fun CompoundLookupScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun CompoundStructure(compound: PubChemCompound, repository: PubChem) {
+private fun CompoundStructure(
+    compound: PubChemCompound,
+    repository: PubChem,
+    canSave: Boolean,
+    onSave: (ByteArray) -> Unit,
+) {
     var showModel by rememberSaveable { mutableStateOf(false) }
     var retry by remember { mutableIntStateOf(0) }
     val modelSelected = showModel
@@ -177,9 +236,9 @@ private fun CompoundStructure(compound: PubChemCompound, repository: PubChem) {
                         val molecule = requireNotNull(repository.structure(compound.cid))
                         CompoundGraphic.Model(molecule)
                     } else {
-                        val data = repository.depiction(compound.cid)
+                        val data = repository.depiction(compound.cid, compound.heavyAtomCount)
                         val bitmap = requireNotNull(BitmapFactory.decodeByteArray(data, 0, data.size))
-                        CompoundGraphic.Depiction(bitmap.asImageBitmap())
+                        CompoundGraphic.Depiction(bitmap.asImageBitmap(), data)
                     }
                 })
             } catch (cancelled: CancellationException) {
@@ -199,12 +258,12 @@ private fun CompoundStructure(compound: PubChemCompound, repository: PubChem) {
         val result = graphic
         when (val drawing = result?.getOrNull()) {
             is CompoundGraphic.Depiction -> {
-                Image(drawing.image, contentDescription = "${compound.name}的二维结构",
-                    modifier = Modifier.fillMaxWidth().height(240.dp).background(Color.White)
-                        .testTag("compound_depiction_${compound.cid}"))
+                CompoundDepictionView(compound, drawing.image, canSave, onSave = { onSave(drawing.png) })
             }
             is CompoundGraphic.Model -> {
-                Box(Modifier.testTag("compound_structure_${compound.cid}")) { MoleculeView(drawing.molecule) }
+                Box(Modifier.testTag("compound_structure_${compound.cid}")) {
+                    MoleculeView(drawing.molecule, allowFullscreen = true)
+                }
             }
             null -> if (result == null) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())

@@ -47,6 +47,26 @@ class AppearanceColorsTest {
         assertEquals(21.0, wcag(Color.Black, Color.White), .0001)
     }
 
+    @Test fun customAccentsUseNeutralSurfacesInLightAndDarkModes() {
+        listOf(lightColorScheme(), darkColorScheme()).forEach { base ->
+            listOf(Color(0xFF166B58), Color(0xFF2865A6), Color(0xFFAF3F6F)).forEach { accent ->
+                val colors = BackgroundColors.withAccent(base, accent)
+                val surfaces = listOf(colors.background, colors.surface, colors.surfaceContainerLowest,
+                    colors.surfaceContainerLow, colors.surfaceContainer, colors.surfaceContainerHigh,
+                    colors.surfaceContainerHighest, colors.surfaceVariant)
+                surfaces.forEach { surface ->
+                    assertEquals(surface.red, surface.green, 0f)
+                    assertEquals(surface.red, surface.blue, 0f)
+                }
+                assertNotEquals(colors.primary.red, colors.primary.blue)
+                assertTrue(wcag(colors.onSurface, colors.surfaceContainer) >= 4.5)
+                assertTrue(wcag(colors.onPrimary, colors.primary) >= 4.5)
+                val customBackground = Color(0xFFE8F2FF)
+                assertEquals(customBackground, BackgroundColors.withBackground(colors, customBackground).background)
+            }
+        }
+    }
+
     // Independent sRGB calculation, rather than checking the helper against itself.
     private fun wcag(first: Color, second: Color): Double {
         fun luminance(color: Color): Double {

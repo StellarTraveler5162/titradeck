@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import java.util.Locale
+import kotlin.math.pow
 
 /** Opaque sRGB backgrounds only: alpha would make contrast depend on unseen layers. */
 object BackgroundColors {
@@ -26,7 +27,26 @@ object BackgroundColors {
     fun prefersDarkSurfaces(background: Color): Boolean =
         contrast(Color.White, background) > contrast(Color.Black, background)
 
-    internal fun withAccent(base: ColorScheme, seed: Color): ColorScheme {
+    internal fun withAccent(palette: ColorScheme, seed: Color): ColorScheme {
+        val base = palette.copy(
+            background = palette.background.neutral(),
+            onBackground = palette.onBackground.neutral(),
+            surface = palette.surface.neutral(),
+            onSurface = palette.onSurface.neutral(),
+            surfaceVariant = palette.surfaceVariant.neutral(),
+            onSurfaceVariant = palette.onSurfaceVariant.neutral(),
+            surfaceBright = palette.surfaceBright.neutral(),
+            surfaceDim = palette.surfaceDim.neutral(),
+            surfaceContainerLowest = palette.surfaceContainerLowest.neutral(),
+            surfaceContainerLow = palette.surfaceContainerLow.neutral(),
+            surfaceContainer = palette.surfaceContainer.neutral(),
+            surfaceContainerHigh = palette.surfaceContainerHigh.neutral(),
+            surfaceContainerHighest = palette.surfaceContainerHighest.neutral(),
+            inverseSurface = palette.inverseSurface.neutral(),
+            inverseOnSurface = palette.inverseOnSurface.neutral(),
+            outline = palette.outline.neutral(),
+            outlineVariant = palette.outlineVariant.neutral(),
+        )
         val dark = prefersDarkSurfaces(base.surface)
         val ink = if (dark) Color.White else Color.Black
         val surfaces = listOf(base.surface, base.surfaceContainer, base.surfaceContainerHigh, base.surfaceContainerHighest)
@@ -84,6 +104,13 @@ object BackgroundColors {
 
     private fun foregroundFor(preferred: Color, fill: Color): Color = fit(preferred, listOf(fill),
         if (prefersDarkSurfaces(fill)) Color.White else Color.Black, 4.5)
+
+    private fun Color.neutral(): Color {
+        val light = luminance()
+        // Convert linear luminance back to an sRGB channel to preserve surface brightness.
+        val gray = if (light <= .0031308f) 12.92f * light else 1.055f * light.pow(1f / 2.4f) - .055f
+        return Color(gray, gray, gray, alpha)
+    }
 
     private fun fit(preferred: Color, backgrounds: List<Color>, ink: Color, minimum: Double): Color {
         fun passes(candidate: Color) = backgrounds.all { contrast(candidate, it) >= minimum }

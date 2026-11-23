@@ -4,7 +4,7 @@ TitraDeck 是一款面向化学学习和日常计算的 Android 工作台。计�
 
 ## 下载安装
 
-需要 Android 8.0 或更新版本。从 GitHub Release 下载 `TitraDeck-1.0.1.apk`，在手机上打开安装。已有调试版的设备需要先卸载调试版，这会清除该版本的本机历史和设置。 [下载 TitraDeck 1.0.1](https://github.com/dongzhan4137/titradeck/releases/tag/v1.0.1)
+需要 Android 8.0 或更新版本。从 GitHub Release 下载 `TitraDeck-1.0.2.apk`，在手机上打开安装。已有调试版的设备需要先卸载调试版，这会清除该版本的本机历史和设置。 [下载 TitraDeck 1.0.2](https://github.com/dongzhan4137/titradeck/releases/tag/v1.0.2)
 
 ## 主要功能
 

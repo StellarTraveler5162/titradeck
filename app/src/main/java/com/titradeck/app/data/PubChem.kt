@@ -7,6 +7,8 @@ import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 import org.json.JSONObject
 
 data class PubChemCompound(
@@ -15,6 +17,7 @@ data class PubChemCompound(
     val formula: String,
     val smiles: String,
     val molecularWeight: String,
+    val heavyAtomCount: Int = 0,
 )
 
 data class PubChemSearchResult(
@@ -24,6 +27,9 @@ data class PubChemSearchResult(
     val translatedName: String? = null,
     internal val listKey: String? = null,
 )
+
+internal fun depictionImageSize(heavyAtomCount: Int): Int =
+    (600 * sqrt(heavyAtomCount.coerceAtLeast(10) / 10.0)).roundToInt().coerceAtMost(2000)
 
 class PubChem {
     private val base = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound"
@@ -93,7 +99,7 @@ class PubChem {
     }
 
     private fun properties(ids: List<Int>): List<PubChemCompound> {
-        val url = "$base/cid/${ids.joinToString(",")}/property/MolecularFormula,IUPACName,IsomericSMILES,MolecularWeight/JSON"
+        val url = "$base/cid/${ids.joinToString(",")}/property/MolecularFormula,IUPACName,IsomericSMILES,MolecularWeight,HeavyAtomCount/JSON"
         val properties = JSONObject(fetch(url)).getJSONObject("PropertyTable").getJSONArray("Properties")
         val compounds = (0 until properties.length()).associate { index ->
             val item = properties.getJSONObject(index)
@@ -101,6 +107,7 @@ class PubChem {
             cid to PubChemCompound(
                 cid, item.optString("IUPACName", "未提供"), item.optString("MolecularFormula"),
                 item.optString("SMILES", item.optString("ConnectivitySMILES")), item.optString("MolecularWeight"),
+                heavyAtomCount = item.optInt("HeavyAtomCount"),
             )
         }
         return ids.mapNotNull(compounds::get)
@@ -130,7 +137,10 @@ class PubChem {
 
     private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
-    fun depiction(cid: Int): ByteArray = download("$base/cid/$cid/PNG?image_size=large")
+    fun depiction(cid: Int, heavyAtomCount: Int): ByteArray {
+        val size = depictionImageSize(heavyAtomCount)
+        return download("$base/cid/$cid/PNG?image_size=${size}x$size")
+    }
 
     fun structure(cid: Int): MoleculeModel? {
         val model3d = runCatching { parseModel(fetch("$base/cid/$cid/SDF?record_type=3d")) }.getOrNull()
