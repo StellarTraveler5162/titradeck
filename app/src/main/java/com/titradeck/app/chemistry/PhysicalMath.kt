@@ -154,6 +154,12 @@ object PhysicalMath {
         UnitDef("K", "K · 开尔文", "temperature", 1.0), UnitDef("C", "°C · 摄氏度", "temperature", 1.0, 273.15),
     )
 
+    fun hasDifferentDimensions(from: String, to: String): Boolean {
+        val source = units.firstOrNull { it.id == from } ?: return false
+        val target = units.firstOrNull { it.id == to } ?: return false
+        return source.dimension != target.dimension
+    }
+
     fun convert(value: Double, from: String, to: String, molarMass: Double? = null): Double {
         finite(value, "数值")
         val source = units.firstOrNull { it.id == from } ?: throw IllegalArgumentException("请选择起始单位。")
@@ -161,10 +167,12 @@ object PhysicalMath {
         var base = value * source.factor + source.offset
         require(base >= 0.0) { "质量、体积、浓度、绝对压力和物质的量不能为负；温度不能低于绝对零度。" }
         if (source.dimension != target.dimension) {
-            val bridge = setOf(source.dimension, target.dimension) == setOf("molar_concentration", "mass_concentration")
-            require(bridge) { "这两个单位属于不同量纲，不能直接换算。" }
-            val mw = positive(molarMass ?: throw IllegalArgumentException("摩尔浓度与质量浓度互换时必须输入摩尔质量。"), "摩尔质量")
-            base = if (source.dimension == "molar_concentration") base * mw else base / mw
+            val dimensions = setOf(source.dimension, target.dimension)
+            val massAndAmount = dimensions == setOf("mass", "amount")
+            val concentrations = dimensions == setOf("molar_concentration", "mass_concentration")
+            require(massAndAmount || concentrations) { "这两个量纲无法仅凭摩尔质量换算，需要其他条件。" }
+            val mw = positive(molarMass ?: throw IllegalArgumentException("请输入有效的摩尔质量。"), "摩尔质量")
+            base = if (source.dimension == "amount" || source.dimension == "molar_concentration") base * mw else base / mw
         }
         return finite((base - target.offset) / target.factor, "换算结果")
     }

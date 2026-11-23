@@ -16,8 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.titradeck.app.chemistry.*
@@ -44,13 +47,14 @@ fun ReferenceScreen(onUse: (ReferenceEntry) -> Unit) {
                 item { Text("左右滑动查看完整周期表 · 点击元素查看性质", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 item { PeriodicTable { selected = it } }
                 item { Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    listOf("非金属", "卤素", "稀有气体", "过渡金属", "镧系元素", "锕系元素").forEach { category ->
+                    PeriodicColorGroup.entries.forEach { group ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Box(Modifier.size(9.dp).background(elementTint(category), RoundedCornerShape(3.dp)))
-                            Text(category, style = MaterialTheme.typography.labelSmall)
+                            Box(Modifier.size(9.dp).background(elementTint(group), RoundedCornerShape(3.dp)))
+                            Text(group.label, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 } }
+                item { Text("* 表示没有稳定同位素 · 类金属按非金属颜色显示", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 item { Text("原子量：CIAAW 简化标准原子量；其他性质：PubChem。无标准原子量的元素使用注明的代表同位素质量。缺失性质不会用估算值填补。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else {
                 val matching = Elements.all.filter { it.symbol.contains(query, true) || it.name.contains(query) || it.englishName.contains(query, true) || it.atomicNumber.toString() == query }
@@ -58,7 +62,7 @@ fun ReferenceScreen(onUse: (ReferenceEntry) -> Unit) {
                 items(matching, key = { it.atomicNumber }) { element ->
                     Card(onClick = { selected = element }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
                         Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                            Text(element.symbol, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            ElementSymbol(element, 28.sp, MaterialTheme.colorScheme.primary)
                             Column(Modifier.weight(1f)) { Text("${element.name} · ${element.englishName}", style = MaterialTheme.typography.titleMedium); Text("原子序数 ${element.atomicNumber}  ·  ${element.category}", style = MaterialTheme.typography.bodySmall) }
                             Text(compact(element.atomicMass), style = MaterialTheme.typography.bodyMedium)
                         }
@@ -100,10 +104,10 @@ private fun PeriodicTable(onSelect: (Element) -> Unit) {
                 for (column in 1..18) {
                     val element = map[row to column]
                     if (element != null) Surface(onClick = { onSelect(element) }, shape = RoundedCornerShape(9.dp),
-                        color = elementTint(element.category).copy(alpha = .13f), modifier = Modifier.width(58.dp).height(76.dp)) {
+                        color = elementTint(element.periodicColorGroup).copy(alpha = .13f), modifier = Modifier.width(58.dp).height(76.dp)) {
                         Column(Modifier.padding(5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
                             Text("${element.atomicNumber}", fontSize = 10.sp, lineHeight = 12.sp, modifier = Modifier.align(Alignment.Start), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(element.symbol, fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            ElementSymbol(element, 21.sp, MaterialTheme.colorScheme.onSurface)
                             Text(element.name, fontSize = 10.sp, lineHeight = 13.sp, maxLines = 1)
                         }
                     } else Box(Modifier.width(58.dp).height(76.dp), contentAlignment = Alignment.Center) {
@@ -115,23 +119,28 @@ private fun PeriodicTable(onSelect: (Element) -> Unit) {
     }
 }
 
-private fun elementTint(category: String): Color = when {
-    "稀有" in category -> Color(0xFF8B67CA)
-    "卤" in category -> Color(0xFF169FA2)
-    "非金属" in category -> Color(0xFF299569)
-    "镧" in category -> Color(0xFFBB7A35)
-    "锕" in category -> Color(0xFFB8547B)
-    "类金属" in category -> Color(0xFF659941)
-    "碱土" in category -> Color(0xFFC98A27)
-    "碱金属" in category -> Color(0xFFD26F4D)
-    else -> Color(0xFF427DB8)
+private fun elementTint(group: PeriodicColorGroup): Color = when (group) {
+    PeriodicColorGroup.NONMETAL -> Color(0xFF299569)
+    PeriodicColorGroup.METAL -> Color(0xFF427DB8)
+    PeriodicColorGroup.NOBLE_GAS -> Color(0xFF8B67CA)
+}
+
+@Composable
+private fun ElementSymbol(element: Element, size: TextUnit, color: Color) {
+    val description = if (element.hasNoStableIsotopes) "${element.name} ${element.symbol}，没有稳定同位素" else "${element.name} ${element.symbol}"
+    Row(Modifier.testTag("element_symbol_${element.symbol}").semantics(mergeDescendants = true) { contentDescription = description },
+        verticalAlignment = Alignment.Top) {
+        Text(element.symbol, fontSize = size, lineHeight = size * 1.2f, fontWeight = FontWeight.Bold, color = color)
+        if (element.hasNoStableIsotopes) Text("*", modifier = Modifier.testTag("radioactive_marker_${element.symbol}"),
+            fontSize = size * .55f, lineHeight = size * .65f, fontWeight = FontWeight.Bold, color = color)
+    }
 }
 
 @Composable
 private fun ElementDialog(element: Element, onDismiss: () -> Unit) {
     AlertDialog(onDismissRequest = onDismiss,
         title = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(element.symbol, fontSize = 38.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            ElementSymbol(element, 38.sp, MaterialTheme.colorScheme.primary)
             Column { Text(element.name); Text(element.englishName, style = MaterialTheme.typography.bodyMedium) }
         } },
         text = { SelectionContainer { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {

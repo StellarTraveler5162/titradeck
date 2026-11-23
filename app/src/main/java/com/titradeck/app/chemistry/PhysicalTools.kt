@@ -110,18 +110,27 @@ object PhysicalTools {
             listOf("理想气体近似；高压、低温或接近液化时可能偏离。压力使用绝对压力；这里 mmHg 按 760 mmHg = 1 atm 的常用近似。"))
     }
 
-    private fun converterTool() = ToolDefinition("unit_converter", "化学单位换算", "质量、体积、物质的量、粒子数、浓度与温压", ToolCategory.CORE, "目标值 = 基准量 / 目标单位倍率",
+    private fun converterTool() = ToolDefinition("unit_converter", "化学单位换算", "质量、体积、物质的量、粒子数、浓度与温压", ToolCategory.CORE, "m = nM；ρ = cM；N = nNₐ",
         listOf(field("value", "原始数值", "1"), FieldSpec("fromUnit", "原始单位", "mol", choices = PhysicalMath.units.map { Choice(it.id, it.label) }),
-            FieldSpec("toUnit", "目标单位", "particles", choices = PhysicalMath.units.map { Choice(it.id, it.label) }), field("molarMass", "摩尔质量 / g·mol⁻¹（仅浓度跨量纲时）", "58.44"))) { input ->
+            FieldSpec("toUnit", "目标单位", "particles", choices = PhysicalMath.units.map { Choice(it.id, it.label) }), field("molarMass", "摩尔质量 / g·mol⁻¹", "58.44", "跨量纲时可输入摩尔质量"))) { input ->
         val value = n(input, "value", "原始数值"); val from = s(input, "fromUnit"); val to = s(input, "toUnit")
-        val mw = s(input, "molarMass").toDoubleOrNull()
+        val mw = s(input, "molarMass").trim().replace('−', '-').replace(',', '.').toDoubleOrNull()
         val result = PhysicalMath.convert(value, from, to, mw)
         val source = PhysicalMath.units.first { it.id == from }; val target = PhysicalMath.units.first { it.id == to }
         val steps = mutableListOf("${f(value)} ${source.label.substringBefore(" ·")} → 基准量 → ${f(result)} ${target.label.substringBefore(" ·")}。")
         if (from == "particles" || to == "particles") steps += "N = nNₐ；Nₐ = 6.02214076×10²³ mol⁻¹（SI 定义精确值）。"
-        if (source.dimension != target.dimension) steps += "质量浓度 (g/L) = 摩尔浓度 (mol/L) × 摩尔质量 (g/mol)，mol 单位相消。"
+        if (source.dimension != target.dimension) {
+            val massSource = source.dimension == "mass" || source.dimension == "mass_concentration"
+            val concentration = source.dimension.endsWith("concentration")
+            val sourceBaseUnit = if (massSource) { if (concentration) "g/L" else "g" } else { if (concentration) "mol/L" else "mol" }
+            val targetBaseUnit = if (massSource) { if (concentration) "mol/L" else "mol" } else { if (concentration) "g/L" else "g" }
+            val sourceBase = value * source.factor
+            val targetBase = if (massSource) sourceBase / mw!! else sourceBase * mw!!
+            val operation = if (massSource) "÷" else "×"
+            steps += "${f(sourceBase)} $sourceBaseUnit $operation ${f(mw)} g/mol = ${f(targetBase)} $targetBaseUnit。"
+        }
         if (source.dimension == "temperature") steps += "T/K = t/°C + 273.15。"
-        CalculationResult("换算结果", f(result), target.label.substringBefore(" ·"), steps = steps, notes = listOf("切换单位保留原始输入值，可直接重新换算；质量浓度与摩尔浓度互换需要指定物质的摩尔质量。mmHg 采用 760 mmHg = 1 atm 近似。"))
+        CalculationResult("换算结果", f(result), target.label.substringBefore(" ·"), steps = steps, notes = listOf("质量与物质的量、质量浓度与摩尔浓度互换时需要指定摩尔质量。mmHg 采用 760 mmHg = 1 atm 近似。"))
     }
 
     private fun nernstTool() = ToolDefinition("nernst", "能斯特方程", "电极电势、电池电动势与 pH 的联系", ToolCategory.EQUILIBRIUM, "E = E° − RT/(nF) ln Q",

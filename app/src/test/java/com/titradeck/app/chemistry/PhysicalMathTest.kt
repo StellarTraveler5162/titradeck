@@ -76,9 +76,29 @@ class PhysicalMathTest {
         near(-273.15, PhysicalMath.convert(0.0, "K", "C"))
         near(58.44, PhysicalMath.convert(1.0, "M", "g/L", 58.44))
         near(1.0, PhysicalMath.convert(58.44, "mg/L", "mM", 58.44))
+        near(1.0, PhysicalMath.convert(58.44, "g", "mol", 58.44))
+        near(58440.0, PhysicalMath.convert(1.0, "mol", "mg", 58.44))
+        near(PhysicalMath.NA, PhysicalMath.convert(58.44, "g", "particles", 58.44))
+        near(58.44, PhysicalMath.convert(PhysicalMath.NA, "particles", "g", 58.44))
+        near(1000.0, PhysicalMath.convert(1.0, "g", "mg", Double.NaN))
+        assertFalse(PhysicalMath.hasDifferentDimensions("mol", "particles"))
+        assertTrue(PhysicalMath.hasDifferentDimensions("g", "particles"))
+        assertTrue(PhysicalMath.hasDifferentDimensions("g", "L"))
         rejected { PhysicalMath.convert(1.0, "g", "L") }
+        rejected { PhysicalMath.convert(1.0, "g", "L", 58.44) }
+        rejected { PhysicalMath.convert(1.0, "g", "mol", 0.0) }
+        rejected { PhysicalMath.convert(1.0, "mol", "g", Double.NaN) }
         rejected { PhysicalMath.convert(1.0, "M", "g/L") }
         rejected { PhysicalMath.convert(-274.0, "C", "K") }
+    }
+    @Test fun converterToolUsesMolarMassForCrossDimensionConversions() {
+        near(1.0, tool("unit_converter", "value" to "58.44", "fromUnit" to "g", "toUnit" to "mol").value.toDouble())
+        val particles = tool("unit_converter", "value" to "1", "fromUnit" to "mol", "toUnit" to "particles", "molarMass" to "")
+        near(PhysicalMath.NA, particles.value.toDouble())
+        val mass = tool("unit_converter", "value" to "1", "fromUnit" to "mol", "toUnit" to "g", "molarMass" to "58,44")
+        near(58.44, mass.value.toDouble())
+        assertTrue(mass.steps.any { it.contains("58.44 g/mol") })
+        rejected { tool("unit_converter", "fromUnit" to "mol", "toUnit" to "g", "molarMass" to "") }
     }
     @Test fun nernstHydrogenElectrodeAndElectrolysis() {
         val potential = PhysicalMath.nernst(0.0, 2.0, 298.15, 14.0 * ln(10.0))

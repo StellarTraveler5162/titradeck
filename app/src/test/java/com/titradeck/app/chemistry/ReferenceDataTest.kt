@@ -26,6 +26,20 @@ class ReferenceDataTest {
         assertNull(Elements.bySymbol.getValue("He").electronegativity)
     }
 
+    @Test fun periodicColorsAndRadioactivityCoverEveryElement() {
+        assertEquals(PeriodicColorGroup.NONMETAL, Elements.bySymbol.getValue("C").periodicColorGroup)
+        assertEquals(PeriodicColorGroup.NONMETAL, Elements.bySymbol.getValue("Cl").periodicColorGroup)
+        assertEquals(PeriodicColorGroup.NONMETAL, Elements.bySymbol.getValue("Si").periodicColorGroup)
+        assertEquals(PeriodicColorGroup.METAL, Elements.bySymbol.getValue("Fe").periodicColorGroup)
+        assertEquals(PeriodicColorGroup.METAL, Elements.bySymbol.getValue("La").periodicColorGroup)
+        assertEquals(PeriodicColorGroup.NOBLE_GAS, Elements.bySymbol.getValue("Rn").periodicColorGroup)
+        assertEquals(PeriodicColorGroup.entries.toSet(), Elements.all.map { it.periodicColorGroup }.toSet())
+        val expected = setOf(43, 61) + (83..118)
+        assertEquals(expected, Elements.all.filter { it.hasNoStableIsotopes }.map { it.atomicNumber }.toSet())
+        assertFalse(Elements.bySymbol.getValue("U").massIsRepresentative)
+        assertTrue(Elements.bySymbol.getValue("U").hasNoStableIsotopes)
+    }
+
     @Test fun siRelationshipsAndReferenceIdentitiesAreConsistent() {
         val entries = ReferenceData.entries.associateBy { it.id }
         assertEquals(ReferenceData.entries.size, entries.size)

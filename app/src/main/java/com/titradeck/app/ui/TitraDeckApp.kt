@@ -100,18 +100,6 @@ fun TitraDeckApp() {
             } finally { busy = false }
         }
     }
-    LaunchedEffect(selectedId, inputs) {
-        val current = tool
-        if (current?.id == "unit_converter") {
-            delay(180)
-            try {
-                val calculated = withContext(Dispatchers.Default) { current.calculate(inputs) }
-                resultJson = AppStore.encodeResult(calculated)
-                error = null
-            } catch (cancelled: CancellationException) { throw cancelled
-            } catch (failure: Exception) { error = failure.message ?: "请核对换算单位。" }
-        }
-    }
     fun closeTool() { selectedId = null; tab = returnTab; error = null }
     BackHandler(enabled = selectedId != null) { closeTool() }
     TitraTheme(appearance, backgroundHex, themeHex) {
@@ -158,7 +146,9 @@ fun TitraDeckApp() {
                                         onBack = { closeTool() },
                                         onValue = { key, value ->
                                             val changed = inputs + (key to value)
-                                            inputs = changed; resultJson = null; error = null
+                                            inputs = changed
+                                            if (visibleTool.id != "unit_converter") resultJson = null
+                                            error = null
                                         }, onCalculate = { calculate(visibleTool, inputs, true) },
                                         onReset = { inputs = visibleTool.fields.associate { it.key to it.defaultValue }; resultJson = null; error = null })
                                 }
@@ -277,7 +267,7 @@ private fun CalculatorScreen(tool: ToolDefinition, values: Map<String, String>, 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = rememberCoroutineScope()
     val resultIndex = 4 + tool.fields.size
-    LaunchedEffect(result) { if (result != null && tool.id != "unit_converter") listState.animateScrollToItem(resultIndex) }
+    LaunchedEffect(result) { if (result != null) listState.animateScrollToItem(resultIndex) }
     Column(Modifier.imePadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("‹  返回") }
@@ -290,6 +280,8 @@ private fun CalculatorScreen(tool: ToolDefinition, values: Map<String, String>, 
             item { Text("01  填写已知条件", style = MaterialTheme.typography.titleMedium) }
             items(tool.fields, key = { it.key }) { field ->
                 InputField(field, values[field.key] ?: "", busy, tool.id, field.key == values["unknown"],
+                    enabled = tool.id != "unit_converter" || field.key != "molarMass" ||
+                        PhysicalMath.hasDifferentDimensions(values["fromUnit"].orEmpty(), values["toUnit"].orEmpty()),
                     onPreset = { entry ->
                         (entry.inputOverrides + (field.key to entry.value.toString())).forEach { (key, value) -> onValue(key, value) }
                     }) { onValue(field.key, it) }
@@ -301,9 +293,9 @@ private fun CalculatorScreen(tool: ToolDefinition, values: Map<String, String>, 
                     }
                     Button(onClick = { focus.clearFocus(); keyboard?.hide(); onCalculate() }, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp)) {
                         if (busy) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(12.dp)) }
-                        Text(if (busy) "正在计算…" else if (tool.id == "unit_converter") "保存此次换算" else "计算并保存", style = MaterialTheme.typography.titleMedium)
+                        Text(if (busy) "正在计算…" else "开始计算", style = MaterialTheme.typography.titleMedium)
                     }
-                    Text(if (tool.id == "unit_converter") "更改单位即更新结果；点击按钮保存到历史。" else "计算记录仅保存在本机，可在“历史”中恢复输入。",
+                    Text(if (tool.id == "unit_converter") "修改输入后，点击“开始计算”更新结果并保存到历史。" else "计算记录仅保存在本机，可在“历史”中恢复输入。",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -318,7 +310,7 @@ private fun CalculatorScreen(tool: ToolDefinition, values: Map<String, String>, 
 }
 
 @Composable
-private fun InputField(field: FieldSpec, value: String, busy: Boolean, toolId: String, calculated: Boolean,
+private fun InputField(field: FieldSpec, value: String, busy: Boolean, toolId: String, calculated: Boolean, enabled: Boolean,
     onPreset: (ReferenceEntry) -> Unit, onChange: (String) -> Unit) {
     if (field.choices.isNotEmpty()) {
         var expanded by remember { mutableStateOf(false) }
@@ -345,7 +337,7 @@ private fun InputField(field: FieldSpec, value: String, busy: Boolean, toolId: S
         var constantMenu by remember { mutableStateOf(false) }
         val constants = ReferenceData.entries.filter { it.toolId == toolId && it.fieldKey == field.key }
         Column {
-            OutlinedTextField(if (calculated) "" else value, { onChange(it.take(4000)) }, label = { LatexText(field.label) }, enabled = !busy && !calculated,
+            OutlinedTextField(if (calculated) "" else value, { onChange(it.take(4000)) }, label = { LatexText(field.label) }, enabled = !busy && !calculated && enabled,
                 placeholder = if (calculated) {{ Text("由其他已知量求解") }} else null,
                 modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, minLines = if (field.multiline) 3 else 1,
                 maxLines = if (field.multiline) 8 else 1, singleLine = !field.multiline,
@@ -360,9 +352,20 @@ private fun InputField(field: FieldSpec, value: String, busy: Boolean, toolId: S
 
 @Composable
 fun FormulaPanel(formula: String) {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var copied by remember(formula) { mutableStateOf(false) }
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("使用的公式", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("使用的公式", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                TextButton(onClick = {
+                    scope.launch {
+                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("TitraDeck 公式", mathTextForClipboard(formula))))
+                        copied = true
+                    }
+                }) { Text(if (copied) "已复制" else "复制公式") }
+            }
             SelectionContainer { LatexText(formula, style = MaterialTheme.typography.bodyLarge, forceFormula = true) }
         }
     }
@@ -372,7 +375,8 @@ fun FormulaPanel(formula: String) {
 private fun ResultPanel(result: CalculationResult, formula: String, toolId: String) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    var copied by remember { mutableStateOf(false) }
+    var copied by remember(result) { mutableStateOf(false) }
+    var valueCopied by remember(result) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("02  结果与过程", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -382,12 +386,21 @@ private fun ResultPanel(result: CalculationResult, formula: String, toolId: Stri
                     result.rows.forEach { appendLine("${it.label}: ${it.value} ${it.unit}") }
                     result.steps.forEach(::appendLine); result.notes.forEach(::appendLine)
                 }
-                scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("TitraDeck 计算结果", output))); copied = true }
+                scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("TitraDeck 计算结果", mathTextForClipboard(output)))); copied = true }
             }) { Text(if (copied) "已复制" else "复制结果") }
         }
         Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.large) {
             Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                LatexText(result.headline, color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    LatexText(result.headline, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
+                    TextButton(onClick = {
+                        val output = listOf(result.value, result.unit).filter { it.isNotBlank() }.joinToString(" ")
+                        scope.launch {
+                            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("TitraDeck 结果", mathTextForClipboard(output))))
+                            valueCopied = true
+                        }
+                    }) { Text(if (valueCopied) "已复制" else "复制当前结果") }
+                }
                 SelectionContainer {
                     if (toolId == "balance") EquationText(result.value, modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.titleLarge)
                     else LatexText(result.value, modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.headlineMedium)
@@ -461,7 +474,12 @@ private fun HistoryScreen(store: AppStore, version: Int, onRestore: (HistoryEntr
                     if (entry.toolId == "balance") EquationText(displaySavedResult(entry.toolId, entry.inputs, entry.result).value, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.fillMaxWidth())
                     else LatexText("${displaySavedResult(entry.toolId, entry.inputs, entry.result).value} ${entry.result.unit}", color = MaterialTheme.colorScheme.primary)
                     LatexText(entry.formula, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, forceFormula = true)
-                    Text("恢复输入并查看过程  →", style = MaterialTheme.typography.labelMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("恢复输入并查看过程  →", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                        TextButton(onClick = {
+                            scope.launch { withContext(Dispatchers.IO) { store.delete(entry.id) }; onChanged() }
+                        }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                    }
                 }
             }
         }

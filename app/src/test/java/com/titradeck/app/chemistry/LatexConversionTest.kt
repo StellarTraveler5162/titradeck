@@ -27,4 +27,13 @@ class LatexConversionTest {
         assertTrue(parts.any { it.latex == "\\mathsf{c}_{1}\\mathsf{V}_{1}" })
         assertEquals("10^{(-\\mathsf{pKw})}", mathTextToLatex("10^(−pKw)"))
     }
+
+    @Test fun clipboardTextPreservesChemicalScriptsAndConvertsTex() {
+        assertEquals("2 H₂ + O₂ → 2 H₂O", mathTextForClipboard("2 H₂ + O₂ → 2 H₂O"))
+        assertEquals("H₂O + SO₄²⁻", mathTextForClipboard("\\mathsf{H}_{2}\\mathsf{O} + \\mathrm{SO}_{4}^{2-}"))
+        assertEquals("10⁽⁻ᵖᴷʷ⁾", mathTextForClipboard("10^(−pKw)"))
+        assertEquals("(H₂)/(O₂)", mathTextForClipboard("\\frac{H_{2}}{O_{2}}"))
+        assertEquals("Aᵣ,ᵢ = 10⁻³", mathTextForClipboard("A_{r,i} = 10^{-3}"))
+        assertEquals("x_{abc} + x^{q}", mathTextForClipboard("x_{abc} + x^{q}"))
+    }
 }
