@@ -7,6 +7,7 @@
 </p>
 
 ## 什么是TitraDeck？
+
 TitraDeck 是一款面向化学学习和日常计算的 Android 工作台。计算结果附带公式、单位和推导步骤，便于核对。
 
 ## 下载安装
@@ -44,6 +45,7 @@ TitraDeck 是一款面向化学学习和日常计算的 Android 工作台。计�
 
 ## 开发者与许可
 
-東站。 [Bilibili](https://space.bilibili.com/521110373) · [X](https://x.com/dongzhan4137) · [GitHub](https://github.com/dongzhan4137)
+東站
+[Bilibili](https://space.bilibili.com/521110373) · [X](https://x.com/dongzhan4137) · [GitHub](https://github.com/dongzhan4137)
 
 [MIT 许可证](https://github.com/dongzhan4137/titradeck/blob/main/LICENSE)
