@@ -1,5 +1,9 @@
 # TitraDeck
 
+[![Release](https://img.shields.io/github/v/release/dongzhan4137/titradeck?label=release)](https://github.com/dongzhan4137/titradeck/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/dongzhan4137/titradeck/total?label=downloads)](https://github.com/dongzhan4137/titradeck/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/dongzhan4137/titradeck?style=flat&label=stars)](https://github.com/dongzhan4137/titradeck/stargazers)
+
 ![TitraDeck 化学工作台。封面展示计算首页与摩尔质量结果。](docs/promo/titradeck-cover.webp)
 
 TitraDeck 是一款面向化学学习和日常计算的 Android 工作台。计算结果附带公式、单位和推导步骤，便于核对。
