@@ -1,5 +1,7 @@
 # TitraDeck
 
+![TitraDeck 化学工作台。封面展示计算首页与摩尔质量结果。](docs/promo/titradeck-cover.webp)
+
 TitraDeck 是一款面向化学学习和日常计算的 Android 工作台。计算结果附带公式、单位和推导步骤，便于核对。
 
 ## 下载安装
@@ -17,6 +19,14 @@ TitraDeck 是一款面向化学学习和日常计算的 Android 工作台。计�
 | 化合物查询 | 通过名称、分子式、SMILES 或 PubChem CID 查询有机和无机化合物。结果每页 20 条，详情可切换二维结构图和分子模型 |
 
 计算记录保存在设备上，可以恢复输入修改。应用支持深色模式、系统主题色和自定义主题色，背景颜色可单独设置。
+
+## 界面预览
+
+![化学计算。以硫酸铜五水合物为例，展示摩尔质量、元素质量分数与单位推导。](docs/promo/chemical-calculations.webp)
+
+![化学参考。展示含 118 种元素的可交互周期表。](docs/promo/periodic-table.webp)
+
+![化合物查询。并排展示咖啡因的二维结构图和三维球棍模型。](docs/promo/compound-structures.webp)
 
 ## 网络与数据
 
