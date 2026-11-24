@@ -174,7 +174,22 @@ fun MoleculeView(model: MoleculeModel, allowFullscreen: Boolean = false) {
                     valueRange = .2f..1.5f,
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "球棍大小" },
                 )
-                LatexText(model.caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val modelInfoStyle = MaterialTheme.typography.bodySmall
+                val modelInfoColor = MaterialTheme.colorScheme.onSurfaceVariant
+                Text(
+                    text = buildString {
+                        appendLine("单指拖动旋转，双指捏合缩放。")
+                        if (allowFullscreen) {
+                            val fullscreenAction = if (expanded) "退出全屏" else "进入全屏"
+                            appendLine("双指同向拖动可平移，点右下角$fullscreenAction。")
+                        }
+                        append("滑块调节球棍大小，点「复位」恢复初始状态。")
+                    },
+                    style = modelInfoStyle,
+                    color = modelInfoColor,
+                )
+                Spacer(Modifier.height(4.dp))
+                LatexText(model.caption, style = modelInfoStyle, color = modelInfoColor)
             }
         }
     }
