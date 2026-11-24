@@ -56,34 +56,87 @@ fun MoleculeView(model: MoleculeModel, allowFullscreen: Boolean = false) {
         val bound = model.atoms.maxOf { sqrt((it.x-cx).pow(2) + (it.y-cy).pow(2) + (it.z-cz).pow(2)) }.coerceAtLeast(1f)
         val viewportUnit = min(size.width, size.height)
         val origin = center + offset * viewportUnit
-        data class Point(val location: Offset, val depth: Float, val scale: Float)
+        data class Point(val location: Offset, val depth: Float, val perspective: Float, val atomScale: Float, val radius: Float)
+        data class Layer(val depth: Float, val draw: () -> Unit)
+
+        val atomSize = sqrt(zoom) * ballStickSize
         val points = model.atoms.map { atom ->
             val x = atom.x-cx; val y = atom.y-cy; val z = atom.z-cz
             val rx = x*cos(yaw) + z*sin(yaw); val rz = -x*sin(yaw) + z*cos(yaw)
             val ry = y*cos(pitch) - rz*sin(pitch); val depth = y*sin(pitch) + rz*cos(pitch)
             val perspective = 4f / (4f + depth/bound)
             val unit = viewportUnit / (bound*3.1f) * zoom * perspective
-            Point(origin + Offset(rx*unit, -ry*unit), depth, perspective)
+            val atomScale = perspective * atomSize
+            val radius = (if (atom.symbol == "H") 16.dp else 21.dp).toPx() * atomScale
+            Point(origin + Offset(rx*unit, -ry*unit), depth, perspective, atomScale, radius)
         }
+        val layers = mutableListOf<Layer>()
         val stickWidth = 4.dp.toPx() * ballStickSize
-        val stickSpacing = 5.dp.toPx() * ballStickSize
+        val stickColor = bondColor.copy(alpha = .75f)
         model.bonds.forEach { bond ->
             if (bond.from !in points.indices || bond.to !in points.indices) return@forEach
-            val a = points[bond.from].location; val b = points[bond.to].location
-            val distance = (b-a).getDistance().coerceAtLeast(1f)
-            val perpendicular = Offset(-(b.y-a.y)/distance, (b.x-a.x)/distance) * stickSpacing
-            val shifts = when (bond.order) { 2 -> listOf(-.5f,.5f); 3 -> listOf(-1f,0f,1f); else -> listOf(0f) }
-            shifts.forEach { shift -> drawLine(bondColor.copy(alpha = .75f), a + perpendicular*shift, b + perpendicular*shift, strokeWidth = stickWidth) }
+            val from = points[bond.from]
+            val to = points[bond.to]
+            val delta = to.location - from.location
+            val distance = delta.getDistance()
+            if (distance < 1f) return@forEach
+            val direction = delta / distance
+            val perpendicular = Offset(-direction.y, direction.x)
+            val shifts = when (bond.order) {
+                2 -> listOf(-4.dp, 4.dp)
+                3 -> listOf(-5.dp, 0.dp, 5.dp)
+                else -> listOf(0.dp)
+            }.map { it.toPx() * ballStickSize }
+
+            // Split where an overlapping atom crosses the bond in depth, accounting for perspective.
+            val cuts = mutableListOf(0f, 1f)
+            val depthSpan = to.depth - from.depth
+            val lineReach = shifts.maxOf { abs(it) } + stickWidth / 2f
+            if (depthSpan != 0f) {
+                points.forEach atom@{ point ->
+                    val fraction = (point.depth - from.depth) / depthSpan
+                    if (fraction <= 0f || fraction >= 1f) return@atom
+                    val relative = point.location - from.location
+                    val along = (relative.x * direction.x + relative.y * direction.y).coerceIn(0f, distance)
+                    if ((relative - direction * along).getDistance() <= point.radius + lineReach) {
+                        cuts += fraction * from.perspective /
+                            ((1f - fraction) * to.perspective + fraction * from.perspective)
+                    }
+                }
+            }
+            val segments = cuts.distinct().sorted().zipWithNext()
+            shifts.forEach { shift ->
+                fun endInset(radius: Float): Float {
+                    val edge = radius - stickWidth / 4f
+                    return sqrt((edge * edge - shift * shift).coerceAtLeast(0f)) / distance
+                }
+
+                val visibleStart = endInset(from.radius)
+                val visibleEnd = 1f - endInset(to.radius)
+                val lineStart = from.location + perpendicular * shift
+                segments.forEach segment@{ (start, end) ->
+                    val clippedStart = maxOf(start, visibleStart)
+                    val clippedEnd = minOf(end, visibleEnd)
+                    if (clippedStart >= clippedEnd) return@segment
+                    val middle = (clippedStart + clippedEnd) / 2f
+                    val fraction = middle * to.perspective /
+                        ((1f - middle) * from.perspective + middle * to.perspective)
+                    layers += Layer(from.depth + fraction * depthSpan) {
+                        drawLine(stickColor, lineStart + delta * clippedStart, lineStart + delta * clippedEnd, strokeWidth = stickWidth)
+                    }
+                }
+            }
         }
-        points.indices.sortedByDescending { points[it].depth }.forEach { index ->
+
+        fun drawAtom(index: Int) {
             val atom = model.atoms[index]; val p = points[index]
             val color = when (atom.symbol) { "H" -> Color(0xFFE4EBF1); "C" -> Color(0xFF334155); "O" -> Color(0xFFDC4B4F); "N" -> Color(0xFF446DD9); "S" -> Color(0xFFF0C442); "P" -> Color(0xFFDC863C); "F", "Cl" -> Color(0xFF34A97A); else -> Color(0xFF8D63B9) }
-            val atomScale = p.scale * sqrt(zoom) * ballStickSize
-            val radius = (if (atom.symbol == "H") 16 else 21).dp.toPx() * atomScale
+            val atomScale = p.atomScale
+            val radius = p.radius
             val shadow = 2.dp.toPx() * ballStickSize
             drawCircle(Color.Black.copy(alpha=.12f), radius + shadow, p.location + Offset(0f, shadow))
             drawCircle(color, radius, p.location)
-            if (atomScale < .55f) return@forEach
+            if (atomScale < .55f) return
             paint.color = (if (atom.symbol in listOf("H", "S")) Color(0xFF172033) else Color.White).toArgb()
             paint.textSize = 13.dp.toPx() * atomScale
             drawIntoCanvas { it.nativeCanvas.drawText(atom.symbol, p.location.x, p.location.y-(paint.ascent()+paint.descent())/2, paint) }
@@ -112,6 +165,9 @@ fun MoleculeView(model: MoleculeModel, allowFullscreen: Boolean = false) {
                 drawIntoCanvas { it.nativeCanvas.drawText(charge, p.location.x + radius + 6.dp.toPx() * ballStickSize, p.location.y - radius, paint) }
             }
         }
+        points.forEachIndexed { index, point -> layers += Layer(point.depth) { drawAtom(index) } }
+        layers.sortByDescending { it.depth }
+        layers.forEach { it.draw() }
     }
 
     FullscreenViewer(fullscreen, onDismiss = { fullscreen = false }) { expanded ->

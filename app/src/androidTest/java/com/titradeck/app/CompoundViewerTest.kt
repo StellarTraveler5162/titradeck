@@ -21,6 +21,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 @RunWith(AndroidJUnit4::class)
 class CompoundViewerTest {
@@ -92,5 +95,42 @@ class CompoundViewerTest {
         compose.onNodeWithText("复位").performClick()
         compose.onNodeWithText("100%").assertIsDisplayed()
         assertTrue(defaultSize.sameAs(canvas.captureToImage().asAndroidBitmap()))
+    }
+
+    @Test fun doubleBondHasVisibleGapAndCanPassInFrontOfAnAtom() {
+        // Place the test atoms in camera coordinates at the viewer's reset orientation.
+        fun cameraAtom(symbol: String, x: Float, depth: Float): MoleculeAtom {
+            val rotatedZ = depth * cos(.2f)
+            return MoleculeAtom(
+                symbol,
+                x * cos(.3f) - rotatedZ * sin(.3f),
+                depth * sin(.2f),
+                x * sin(.3f) + rotatedZ * cos(.3f),
+            )
+        }
+
+        val model = MoleculeModel(
+            listOf(cameraAtom("H", -1.5f, -.8f), cameraAtom("H", 1.5f, .8f), cameraAtom("O", 0f, 0f)),
+            listOf(MoleculeBond(0, 1, order = 2)),
+            "Depth test",
+        )
+        compose.setContent { MaterialTheme { MoleculeView(model) } }
+
+        val image = compose.onNodeWithContentDescription("可拖动旋转的分子模型：Depth test")
+            .captureToImage().asAndroidBitmap()
+        fun pixel(x: Int, y: Int): Int = with(compose.density) {
+            image.getPixel(image.width / 2 + (x * density).roundToInt(), image.height / 2 + (y * density).roundToInt())
+        }
+
+        val background = pixel(-36, -10)
+        assertEquals(background, pixel(-36, 0))
+        assertTrue(background != pixel(-36, -4))
+        assertTrue(background != pixel(-36, 4))
+        val oxygenColor = 0xFFDC4B4F.toInt()
+        assertEquals(oxygenColor, pixel(-12, 0))
+        assertTrue(oxygenColor != pixel(-12, -4))
+        assertTrue(oxygenColor != pixel(-12, 4))
+        assertEquals(oxygenColor, pixel(12, -4))
+        assertEquals(oxygenColor, pixel(12, 4))
     }
 }
