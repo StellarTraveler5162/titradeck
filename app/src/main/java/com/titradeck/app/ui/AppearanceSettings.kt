@@ -169,7 +169,8 @@ internal fun SettingsScreen(backgroundHex: String?, appearance: String, themeHex
                 Text("数值结果受参考原子量、有效数字和模型假设影响；VSEPR 是注明范围的教学模型，化合物查询数据来自 PubChem。",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("开发者：東站", style = MaterialTheme.typography.titleSmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SocialButton("个人网站", R.drawable.ic_social_website, "https://blog.dongzhan.ink")
                     SocialButton("Bilibili", R.drawable.ic_social_bilibili, "https://space.bilibili.com/521110373")
                     SocialButton("X", R.drawable.ic_social_x, "https://x.com/dongzhan4137")
                     SocialButton("GitHub", R.drawable.ic_social_github, "https://github.com/dongzhan4137")

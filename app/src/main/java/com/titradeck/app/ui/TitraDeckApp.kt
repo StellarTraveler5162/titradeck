@@ -409,17 +409,7 @@ private fun ResultPanel(result: CalculationResult, formula: String, toolId: Stri
             }
         }
         if (result.molecule != null) MoleculeView(result.molecule)
-        if (result.rows.isNotEmpty()) Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                result.rows.forEachIndexed { index, row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        LatexText(row.label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        SelectionContainer(Modifier.weight(1.2f)) { LatexText("${row.value} ${row.unit}".trim(), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)) }
-                    }
-                    if (index < result.rows.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
-                }
-            }
-        }
+        if (result.rows.isNotEmpty()) ResultTable(result.rows)
         if (result.steps.isNotEmpty()) {
             Text("计算过程 · 单位追踪", style = MaterialTheme.typography.titleMedium)
             SelectionContainer { Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -438,6 +428,32 @@ private fun ResultPanel(result: CalculationResult, formula: String, toolId: Stri
             }
         }
         Spacer(Modifier.height(18.dp))
+    }
+}
+
+@Composable
+internal fun ResultTable(rows: List<ResultRow>) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+            rows.forEachIndexed { index, row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    LatexText(
+                        row.label,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SelectionContainer(Modifier.weight(1.2f)) {
+                        LatexText(
+                            "${row.value} ${row.unit}".trim(),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        )
+                    }
+                }
+                if (index < rows.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+                }
+            }
+        }
     }
 }
 

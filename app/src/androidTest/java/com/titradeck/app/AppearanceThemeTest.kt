@@ -99,12 +99,13 @@ class AppearanceThemeTest {
         val list = compose.onNodeWithTag("settings_list")
         list.performScrollToNode(hasText("开发者：東站"))
         compose.onNodeWithText("化学工作台 · ${BuildConfig.VERSION_NAME}").assertExists()
-        for (name in listOf("Bilibili", "X", "GitHub")) {
+        for (name in listOf("个人网站", "Bilibili", "X", "GitHub")) {
             list.performScrollToNode(hasContentDescription(name))
             compose.onNodeWithContentDescription(name).performClick()
         }
         compose.runOnIdle {
             assertEquals(listOf(
+                "https://blog.dongzhan.ink",
                 "https://space.bilibili.com/521110373",
                 "https://x.com/dongzhan4137",
                 "https://github.com/dongzhan4137",

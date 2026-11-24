@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.titradeck.app.chemistry.MoleculeModel
+import com.titradeck.app.chemistry.ResultRow
 import com.titradeck.app.chemistry.displayChemicalFormula
 import com.titradeck.app.data.PubChem
 import com.titradeck.app.data.PubChemCompound
@@ -172,15 +173,15 @@ fun CompoundLookupScreen(onBack: () -> Unit) {
             }
             selected?.let { compound ->
                 item(key = "details-${compound.cid}") {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("IUPAC 名称  ${compound.name}")
-                            LatexText("分子式  ${displayChemicalFormula(compound.formula)}")
-                            Text("分子量  ${compound.molecularWeight}")
-                            Text("SMILES  ${compound.smiles}")
-                            Text("PubChem CID ${compound.cid}", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
+                    ResultTable(
+                        listOf(
+                            ResultRow("IUPAC 名称", compound.name),
+                            ResultRow("分子式", displayChemicalFormula(compound.formula)),
+                            ResultRow("分子量", compound.molecularWeight),
+                            ResultRow("SMILES", compound.smiles),
+                            ResultRow("PubChem CID", compound.cid.toString()),
+                        ),
+                    )
                 }
                 item(key = "structure-${compound.cid}") {
                     CompoundStructure(compound, repository, canSave = !exporting && pendingExportCid == null) { png ->
