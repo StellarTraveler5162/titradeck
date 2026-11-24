@@ -32,16 +32,53 @@ import androidx.compose.ui.unit.dp
 import com.titradeck.app.chemistry.MoleculeModel
 import kotlin.math.*
 
+private const val ModelFitScale = 3.1f
+private const val MaxRotationCenterDistance = 2f
+
+private data class ModelPoint(val x: Float, val y: Float, val z: Float) {
+    operator fun plus(other: ModelPoint) = ModelPoint(x + other.x, y + other.y, z + other.z)
+    operator fun minus(other: ModelPoint) = ModelPoint(x - other.x, y - other.y, z - other.z)
+    operator fun div(scale: Float) = ModelPoint(x / scale, y / scale, z / scale)
+
+    fun length() = sqrt(x * x + y * y + z * z)
+
+    fun rotateX(angle: Float): ModelPoint {
+        val c = cos(angle)
+        val s = sin(angle)
+        return ModelPoint(x, y * c - z * s, y * s + z * c)
+    }
+
+    fun rotateY(angle: Float): ModelPoint {
+        val c = cos(angle)
+        val s = sin(angle)
+        return ModelPoint(x * c + z * s, y, -x * s + z * c)
+    }
+}
+
 @Composable
 fun MoleculeView(model: MoleculeModel, allowFullscreen: Boolean = false) {
     var yaw by remember(model) { mutableFloatStateOf(.3f) }
     var pitch by remember(model) { mutableFloatStateOf(.2f) }
     var zoom by remember(model) { mutableFloatStateOf(1f) }
-    var offset by remember(model) { mutableStateOf(Offset.Zero) }
+    var rotationCenter by remember(model) { mutableStateOf(ModelPoint(0f, 0f, 0f)) }
     var ballStickSize by remember(model) { mutableFloatStateOf(1f) }
     var fullscreen by rememberSaveable(model) { mutableStateOf(false) }
     val bondColor = MaterialTheme.colorScheme.onSurfaceVariant
     val paint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; isFakeBoldText = true } }
+    val atomPositions = remember(model) {
+        if (model.atoms.isEmpty()) {
+            emptyList()
+        } else {
+            val center = ModelPoint(
+                model.atoms.map { it.x }.average().toFloat(),
+                model.atoms.map { it.y }.average().toFloat(),
+                model.atoms.map { it.z }.average().toFloat(),
+            )
+            val positions = model.atoms.map { ModelPoint(it.x, it.y, it.z) - center }
+            val radius = positions.maxOf { it.length() }.coerceAtLeast(1f)
+            positions.map { it / radius }
+        }
+    }
 
     fun rotate(pan: Offset) {
         yaw += pan.x * .01f
@@ -49,26 +86,18 @@ fun MoleculeView(model: MoleculeModel, allowFullscreen: Boolean = false) {
     }
 
     val drawModel: DrawScope.() -> Unit = drawModel@{
-        if (model.atoms.isEmpty()) return@drawModel
-        val cx = model.atoms.map { it.x }.average().toFloat()
-        val cy = model.atoms.map { it.y }.average().toFloat()
-        val cz = model.atoms.map { it.z }.average().toFloat()
-        val bound = model.atoms.maxOf { sqrt((it.x-cx).pow(2) + (it.y-cy).pow(2) + (it.z-cz).pow(2)) }.coerceAtLeast(1f)
-        val viewportUnit = min(size.width, size.height)
-        val origin = center + offset * viewportUnit
+        if (atomPositions.isEmpty()) return@drawModel
+        val unit = min(size.width, size.height) * zoom / ModelFitScale
         data class Point(val location: Offset, val depth: Float, val perspective: Float, val atomScale: Float, val radius: Float)
         data class Layer(val depth: Float, val draw: () -> Unit)
 
         val atomSize = sqrt(zoom) * ballStickSize
-        val points = model.atoms.map { atom ->
-            val x = atom.x-cx; val y = atom.y-cy; val z = atom.z-cz
-            val rx = x*cos(yaw) + z*sin(yaw); val rz = -x*sin(yaw) + z*cos(yaw)
-            val ry = y*cos(pitch) - rz*sin(pitch); val depth = y*sin(pitch) + rz*cos(pitch)
-            val perspective = 4f / (4f + depth/bound)
-            val unit = viewportUnit / (bound*3.1f) * zoom * perspective
+        val points = atomPositions.mapIndexed { index, position ->
+            val view = (position - rotationCenter).rotateY(yaw).rotateX(pitch)
+            val perspective = 4f / (4f + view.z)
             val atomScale = perspective * atomSize
-            val radius = (if (atom.symbol == "H") 16.dp else 21.dp).toPx() * atomScale
-            Point(origin + Offset(rx*unit, -ry*unit), depth, perspective, atomScale, radius)
+            val radius = (if (model.atoms[index].symbol == "H") 16.dp else 21.dp).toPx() * atomScale
+            Point(center + Offset(view.x, -view.y) * (unit * perspective), view.z, perspective, atomScale, radius)
         }
         val layers = mutableListOf<Layer>()
         val stickWidth = 4.dp.toPx() * ballStickSize
@@ -182,7 +211,7 @@ fun MoleculeView(model: MoleculeModel, allowFullscreen: Boolean = false) {
                         yaw = .3f
                         pitch = .2f
                         zoom = 1f
-                        offset = Offset.Zero
+                        rotationCenter = ModelPoint(0f, 0f, 0f)
                         ballStickSize = 1f
                     }) { Text("复位") }
                 }
@@ -198,12 +227,14 @@ fun MoleculeView(model: MoleculeModel, allowFullscreen: Boolean = false) {
                                 if (allowFullscreen) {
                                     detectMoleculeGestures(onRotate = ::rotate) { scale, pan, focus ->
                                         val nextZoom = (zoom * scale).coerceIn(.6f, 8f)
-                                        val unit = min(size.width, size.height).coerceAtLeast(1).toFloat()
+                                        val unit = min(size.width, size.height).coerceAtLeast(1) / ModelFitScale
                                         val center = Offset(size.width / 2f, size.height / 2f)
-                                        val focalOffset = (focus - center) / unit
-                                        val shifted = (offset - focalOffset) * (nextZoom / zoom) + focalOffset + pan / unit
-                                        val limit = nextZoom * .45f
-                                        offset = Offset(shifted.x.coerceIn(-limit, limit), shifted.y.coerceIn(-limit, limit))
+                                        // Translate the rotation center in the view plane, keeping pinch focus on that plane.
+                                        val shift = ((focus - center) * (1f / zoom - 1f / nextZoom) - pan / nextZoom) / unit
+                                        val modelShift = ModelPoint(shift.x, -shift.y, 0f).rotateX(-pitch).rotateY(-yaw)
+                                        val nextCenter = rotationCenter + modelShift
+                                        // Atom positions have unit radius, with the camera four units from the center.
+                                        rotationCenter = nextCenter / (nextCenter.length() / MaxRotationCenterDistance).coerceAtLeast(1f)
                                         zoom = nextZoom
                                     }
                                 } else {

@@ -97,6 +97,69 @@ class CompoundViewerTest {
         assertTrue(defaultSize.sameAs(canvas.captureToImage().asAndroidBitmap()))
     }
 
+    @Test fun rotationKeepsViewportCenterFixedAfterZoomAndPan() {
+        // Both atoms start on the plane through the center of the viewport.
+        val x = .45f * cos(.3f)
+        val z = .45f * sin(.3f)
+        val model = MoleculeModel(
+            listOf(MoleculeAtom("O", x, 0f, z), MoleculeAtom("N", -x, 0f, -z)),
+            listOf(MoleculeBond(0, 1)),
+            "Rotation test",
+        )
+        compose.setContent { MaterialTheme { MoleculeView(model, allowFullscreen = true) } }
+
+        val canvas = compose.onNodeWithContentDescription("可拖动旋转的分子模型：Rotation test")
+        fun atomCenter(color: Int): Offset {
+            val image = canvas.captureToImage().asAndroidBitmap()
+            var left = image.width
+            var right = -1
+            var top = image.height
+            var bottom = -1
+            for (row in 0 until image.height) {
+                for (column in 0 until image.width) {
+                    if (image.getPixel(column, row) != color) continue
+                    left = minOf(left, column)
+                    right = maxOf(right, column)
+                    top = minOf(top, row)
+                    bottom = maxOf(bottom, row)
+                }
+            }
+            assertTrue("Expected visible atom", right >= left && bottom >= top)
+            return Offset((left + right + 1) / 2f, (top + bottom + 1) / 2f)
+        }
+
+        canvas.performTouchInput {
+            val start = Offset(width * .12f, 0f)
+            val end = Offset(width * .20f, 0f)
+            pinch(center - start, center - end, center + start, center + end)
+        }
+        val zoomState = canvas.fetchSemanticsNode().config[SemanticsProperties.StateDescription]
+        assertTrue(zoomState != "缩放 100%")
+
+        val oxygen = 0xFFDC4B4F.toInt()
+        val nitrogen = 0xFF446DD9.toInt()
+        val oxygenBeforePan = atomCenter(oxygen)
+        canvas.performTouchInput {
+            val separation = Offset(0f, height * .14f)
+            val translation = center - oxygenBeforePan
+            down(0, center - separation)
+            down(1, center + separation)
+            updatePointerTo(0, center - separation + translation)
+            updatePointerTo(1, center + separation + translation)
+            move()
+            up(1)
+            up(0)
+        }
+        val centeredOxygen = atomCenter(oxygen)
+        val originalNitrogen = atomCenter(nitrogen)
+        canvas.performTouchInput {
+            swipe(center + Offset(-width * .2f, -height * .2f), center + Offset(width * .18f, -height * .2f))
+        }
+        assertTrue((atomCenter(oxygen) - centeredOxygen).getDistance() <= 2f)
+        assertTrue((atomCenter(nitrogen) - originalNitrogen).getDistance() > 10f)
+        canvas.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, zoomState))
+    }
+
     @Test fun doubleBondHasVisibleGapAndCanPassInFrontOfAnAtom() {
         // Place the test atoms in camera coordinates at the viewer's reset orientation.
         fun cameraAtom(symbol: String, x: Float, depth: Float): MoleculeAtom {
